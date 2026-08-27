@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>다국적 기업의 공간적 분업 시뮬레이션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{
+    --ink:#16323a;
+    --paper:#f3f6f5;
+    --panel:#ffffff;
+    --teal:#1f7a68;
+    --teal-dark:#155448;
+    --amber:#e0972e;
+    --line:#d8e2e0;
+
+    --role-hq:#1f7a68;
+    --role-rnd:#2f6fb0;
+    --role-sales:#c65b2e;
+    --role-factory:#8a4fae;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Noto Sans KR', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  h1,h2,h3, .display{
+    font-family:'Space Grotesk','Noto Sans KR',sans-serif;
+  }
+  .app{
+    max-width:980px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header.top{
+    padding:28px 28px 18px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel);
+  }
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  header.top h1{
+    margin:0 0 4px;
+    font-size:26px;
+    font-weight:700;
+  }
+  header.top p{
+    margin:0;
+    color:#4a625f;
+    font-size:14px;
+  }
+  .progress{
+    display:flex;
+    gap:8px;
+    margin-top:18px;
+  }
+  .progress button{
+    flex:1;
+    border:none;
+    background:var(--line);
+    height:6px;
+    border-radius:4px;
+    cursor:pointer;
+    padding:0;
+    position:relative;
+  }
+  .progress button.active{ background:var(--teal); }
+  .progress-labels{
+    display:flex;
+    gap:8px;
+    margin-top:8px;
+  }
+  .progress-labels span{
+    flex:1;
+    font-size:11.5px;
+    color:#8a9d9a;
+    text-align:center;
+  }
+  .progress-labels span.active{ color:var(--teal-dark); font-weight:700; }
+
+  main{
+    flex:1;
+    padding:32px 28px 40px;
+  }
+  .page{ display:none; animation:fade .35s ease; }
+  .page.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .step-title{
+    font-size:21px;
+    font-weight:700;
+    margin:0 0 6px;
+  }
+  .step-desc{
+    font-size:14px;
+    color:#516e6a;
+    margin:0 0 26px;
+    line-height:1.6;
+  }
+
+  /* Page 1 : role selectors */
+  .role-block{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    margin-bottom:16px;
+  }
+  .role-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .role-icon{
+    width:30px; height:30px;
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff;
+    font-size:15px;
+    flex-shrink:0;
+  }
+  .role-head h3{
+    margin:0;
+    font-size:16.5px;
+  }
+  .role-head .role-selected{
+    margin-left:auto;
+    font-size:12.5px;
+    color:#7a8c89;
+  }
+  .role-head .role-selected b{ color:var(--ink); }
+
+  .chip-grid{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:8px;
+  }
+  .chip{
+    border:1.5px solid var(--line);
+    background:#fbfdfc;
+    border-radius:9px;
+    padding:9px 4px;
+    font-size:13.5px;
+    font-weight:600;
+    text-align:center;
+    cursor:pointer;
+    color:#556e6a;
+    transition:all .15s ease;
+  }
+  .chip:hover{ border-color:#b9cbc8; }
+  .chip.selected{
+    color:#fff;
+    border-color:transparent;
+  }
+
+  /* Page 2 */
+  .org-inputs{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:28px;
+  }
+  .field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--teal-dark);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    padding:11px 13px;
+    border:1.5px solid var(--line);
+    border-radius:9px;
+    font-size:14.5px;
+    font-family:inherit;
+    background:var(--panel);
+  }
+  .field input:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+
+  .orgchart{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:32px 20px 26px;
+  }
+  .orgchart .company-name{
+    text-align:center;
+    font-size:19px;
+    font-weight:700;
+    margin-bottom:2px;
+  }
+  .orgchart .company-product{
+    text-align:center;
+    font-size:12.5px;
+    color:#7a8c89;
+    margin-bottom:22px;
+  }
+  .chart-trunk{
+    display:flex;
+    justify-content:center;
+    margin-bottom:6px;
+  }
+  .node-hq{
+    border:2px solid var(--role-hq);
+    color:var(--role-hq);
+    background:#effaf6;
+    border-radius:11px;
+    padding:12px 26px;
+    font-weight:700;
+    font-size:14.5px;
+    text-align:center;
+    min-width:170px;
+  }
+  .node-hq small{
+    display:block;
+    font-weight:500;
+    font-size:11.5px;
+    color:#4a625f;
+    margin-top:3px;
+  }
+  .connector{
+    height:26px;
+    width:2px;
+    background:var(--line);
+    margin:0 auto;
+  }
+  .branches{
+    display:flex;
+    justify-content:center;
+    position:relative;
+    padding-top:2px;
+  }
+  .branches::before{
+    content:"";
+    position:absolute;
+    top:0;
+    left:16.6%;
+    right:16.6%;
+    height:2px;
+    background:var(--line);
+  }
+  .branch-col{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:0 8px;
+  }
+  .branch-col .stem{
+    width:2px; height:22px;
+    background:var(--line);
+  }
+  .node{
+    border-radius:11px;
+    padding:12px 10px;
+    text-align:center;
+    font-weight:700;
+    font-size:13.5px;
+    width:100%;
+    color:#fff;
+  }
+  .node small{
+    display:block;
+    font-weight:500;
+    font-size:11px;
+    opacity:.92;
+    margin-top:3px;
+  }
+
+  /* Page 3 : logo + table */
+  .logo-card{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    margin-bottom:20px;
+  }
+  .logo-badge{
+    width:64px; height:64px;
+    border-radius:18px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:32px;
+    line-height:1;
+    flex-shrink:0;
+    box-shadow:0 4px 10px rgba(0,0,0,.14);
+    transition:background .2s ease;
+  }
+  .logo-name{
+    font-size:19px;
+    font-weight:700;
+  }
+  .logo-accent{
+    height:3px;
+    width:36px;
+    border-radius:2px;
+    margin:5px 0 6px;
+  }
+  .logo-product{
+    font-size:12.5px;
+    color:#7a8c89;
+  }
+
+  table.reason-table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  table.reason-table th{
+    background:#eef4f2;
+    color:var(--teal-dark);
+    font-size:12.5px;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  table.reason-table td{
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    font-size:14px;
+    vertical-align:top;
+  }
+  table.reason-table tr:last-child td{ border-bottom:none; }
+  .org-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-weight:700;
+    font-size:13.5px;
+  }
+  .org-tag .dot{
+    width:9px; height:9px; border-radius:3px;
+  }
+  .loc-pill{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:999px;
+    background:#eef4f2;
+    color:var(--teal-dark);
+    font-weight:700;
+    font-size:12.5px;
+  }
+  .reason-table textarea{
+    width:100%;
+    min-height:56px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:8px 10px;
+    font-family:inherit;
+    font-size:13.5px;
+    resize:vertical;
+  }
+  .reason-table textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+
+  /* Page 4 : map */
+  .map-wrap{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:14px;
+    font-size:12.5px;
+  }
+  .legend .item{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    color:#4a625f;
+    font-weight:600;
+  }
+  .legend .swatch{
+    width:16px; height:16px;
+    border-radius:5px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;
+    font-size:10px;
+  }
+  #mapContainer{
+    width:100%;
+    height:420px;
+    border-radius:10px;
+    overflow:hidden;
+    z-index:0;
+  }
+  .marker-pin{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:11px;
+    font-weight:700;
+    border-radius:50%;
+    border:2px solid #fff;
+    box-shadow:0 1px 5px rgba(0,0,0,.3);
+  }
+  .marker-pin span{ font-size:9px; margin-left:1px; }
+
+  .reflect{
+    margin-top:22px;
+  }
+  .reflect label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--teal-dark);
+    margin-bottom:6px;
+  }
+  .reflect textarea{
+    width:100%;
+    min-height:80px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    font-family:inherit;
+    font-size:14px;
+    resize:vertical;
+  }
+  .reflect textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+
+  /* Submit row */
+  .submit-row{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+    padding:16px 28px;
+    background:#fff6e8;
+    border-top:1px solid #f0dfb8;
+    animation:fade .3s ease;
+  }
+  .submit-msg{
+    font-size:13.5px;
+    font-weight:600;
+    color:#8a5a10;
+  }
+  .submit-row .navbtn{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#fff;
+  }
+  .submit-row .navbtn:disabled{ opacity:.6; }
+
+  footer.nav{
+    border-top:1px solid var(--line);
+    background:var(--panel);
+    padding:16px 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .navbtn{
+    border:1.5px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    padding:10px 20px;
+    border-radius:9px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .navbtn.primary{
+    background:var(--teal);
+    border-color:var(--teal);
+    color:#fff;
+  }
+  .navbtn:disabled{
+    opacity:.35;
+    cursor:not-allowed;
+  }
+  .navbtn:not(:disabled):hover{ filter:brightness(0.97); }
+  .navcenter{
+    font-size:12.5px;
+    color:#8a9d9a;
+    font-weight:600;
+  }
+
+  @media (max-width:640px){
+    .chip-grid{ grid-template-columns:repeat(5,1fr); }
+    .org-inputs{ grid-template-columns:1fr; }
+    header.top, main, footer.nav, .submit-row{ padding-left:16px; padding-right:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="eyebrow">세계시민과 지리 · 1단원 + 3단원</div>
+    <h1>다국적 기업 A사, 어디에 조직을 세울까?</h1>
+    <p>합리적 선택의 개념으로 이해하는 다국적 기업의 공간적 분업 시뮬레이션</p>
+    <div class="progress">
+      <button data-goto="1" class="active"></button>
+      <button data-goto="2"></button>
+      <button data-goto="3"></button>
+      <button data-goto="4"></button>
+    </div>
+    <div class="progress-labels">
+      <span class="active">① 도시 선택</span>
+      <span>② 조직도 완성</span>
+      <span>③ 이유 정리</span>
+      <span>④ 지도에 표시</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- PAGE 1 -->
+    <section class="page active" id="page-1">
+      <h2 class="step-title">STEP 1. 조직별 입지 도시 선택하기</h2>
+      <p class="step-desc">우리 기업의 <b>본사 · 연구소 · 판매지점 · 생산공장</b>을 각각 어느 가상 도시에 세울지 하나씩 선택하세요.
+      가상 도시는 실제 도시명이 아니라 A~J의 알파벳으로만 표시됩니다. (같은 도시를 여러 조직이 선택할 수도 있어요.)</p>
+      <div id="role-blocks"></div>
+    </section>
+
+    <!-- PAGE 2 -->
+    <section class="page" id="page-2">
+      <h2 class="step-title">STEP 2. 기업 조직도 완성하기</h2>
+      <p class="step-desc">우리 기업의 이름과 주력 상품을 정하고, STEP 1에서 선택한 도시가 반영된 조직도를 확인해보세요.</p>
+
+      <div class="org-inputs">
+        <div class="field">
+          <label>기업명</label>
+          <input id="companyName" type="text" placeholder="예: 글로컬 전자">
+        </div>
+        <div class="field">
+          <label>주력 상품</label>
+          <input id="companyProduct" type="text" placeholder="예: 스마트폰">
+        </div>
+      </div>
+
+      <div class="orgchart">
+        <div class="company-name" id="chartCompanyName">기업명을 입력해주세요</div>
+        <div class="company-product" id="chartCompanyProduct">주력 상품을 입력해주세요</div>
+
+        <div class="chart-trunk">
+          <div class="node-hq" id="hqNode">본사<small id="hqLoc">도시를 선택해주세요</small></div>
+        </div>
+        <div class="connector"></div>
+        <div class="branches" id="branchWrap"></div>
+      </div>
+    </section>
+
+    <!-- PAGE 3 -->
+    <section class="page" id="page-3">
+      <h2 class="step-title">STEP 3. 입지 선정 이유 정리하기</h2>
+      <p class="step-desc">STEP 2에서 완성한 기업의 로고와 함께, 각 조직을 그 도시에 입지시킨 이유를 정리해보세요.</p>
+
+      <div class="logo-card" id="logoCard">
+        <div class="logo-badge" id="logoBadge">📦</div>
+        <div>
+          <div class="logo-name" id="logoName">기업명을 입력해주세요</div>
+          <div class="logo-accent" id="logoAccent"></div>
+          <div class="logo-product" id="logoProduct">주력 상품을 입력해주세요</div>
+        </div>
+      </div>
+
+      <table class="reason-table">
+        <thead>
+          <tr><th style="width:22%">조직</th><th style="width:18%">입지 도시</th><th>이 도시를 선택한 이유</th></tr>
+        </thead>
+        <tbody id="reasonBody"></tbody>
+      </table>
+    </section>
+
+    <!-- PAGE 4 -->
+    <section class="page" id="page-4">
+      <h2 class="step-title">STEP 4. 세계지도에 표시하기</h2>
+      <p class="step-desc">STEP 1에서 선택한 결과가 실제 세계지도 위 위치에 자동으로 표시됩니다. 선택한 도시들이 서로 멀리 떨어져 있으면 지도가 자동으로 축소되어 전체 위치를 한눈에 볼 수 있어요. (가상 도시 알파벳만 표시되며, 실제 도시명은 알려주지 않아요.)</p>
+
+      <div class="map-wrap">
+        <div class="legend" id="mapLegend"></div>
+        <div id="mapContainer"></div>
+      </div>
+
+      <div class="reflect">
+        <label>지도에 표시된 결과를 보고, 어떤 공간적 패턴이 나타나는지 서술해보세요.</label>
+        <textarea id="reflection" placeholder="예: 본사와 연구소는 ○○ 지역에 몰려 있고, 생산공장은 ○○ 지역에 있다. 그 이유는..."></textarea>
+      </div>
+    </section>
+  </main>
+
+  <div class="submit-row" id="submitRow">
+    <div class="submit-msg">🎉 모든 활동을 완료했어요! 버튼을 누르면 결과가 이미지 파일(PNG)로 바로 다운로드됩니다.</div>
+    <button class="navbtn" id="submitBtn">🖼️ 이미지로 저장해서 제출하기</button>
+  </div>
+
+  <footer class="nav">
+    <button class="navbtn" id="prevBtn">← 이전</button>
+    <span class="navcenter" id="pageIndicator">1 / 4</span>
+    <button class="navbtn primary" id="nextBtn">다음 →</button>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  const ROLES = [
+    { key:'본사',     icon:'★', hex:'#1f7a68' },
+    { key:'연구소',   icon:'◆', hex:'#2f6fb0' },
+    { key:'판매지점', icon:'■', hex:'#c65b2e' },
+    { key:'생산공장', icon:'●', hex:'#8a4fae' },
+  ];
+
+  // 가상도시 A~J가 실제로 위치할 좌표 (학생에게는 알파벳으로만 노출, 실제 지명은 노출하지 않음)
+  const CITY_COORDS = {
+    a:{lat:38.9072, lng:-77.0369},   // 가상도시 A
+    b:{lat:52.5200, lng:13.4050},    // 가상도시 B
+    c:{lat:19.4326, lng:-99.1332},   // 가상도시 C
+    d:{lat:4.7110,  lng:-74.0721},   // 가상도시 D
+    e:{lat:21.0278, lng:105.8342},   // 가상도시 E
+    f:{lat:39.9042, lng:116.4074},   // 가상도시 F
+    g:{lat:35.6895, lng:139.6917},   // 가상도시 G
+    h:{lat:37.5665, lng:126.9780},   // 가상도시 H
+    i:{lat:28.6139, lng:77.2090},    // 가상도시 I
+    j:{lat:48.8566, lng:2.3522},     // 가상도시 J
+  };
+  // 제출용 이미지에 그릴 간이 세계지도(도식화) 좌표 - 위 실제 좌표와 대략 대응
+  const SCHEMATIC_POS = {
+    a:{x:180,y:150}, b:{x:520,y:120}, c:{x:150,y:220}, d:{x:235,y:290},
+    e:{x:700,y:250}, f:{x:695,y:185}, g:{x:790,y:180}, h:{x:762,y:170},
+    i:{x:630,y:225}, j:{x:480,y:145}
+  };
+  const LETTERS = Object.keys(CITY_COORDS);
+  const LOGO_PALETTE = ['#1f7a68','#2f6fb0','#c65b2e','#8a4fae','#c2932e','#3a8fa0'];
+
+  // 주력 상품 키워드 → 아이콘(이모지) 매핑
+  const ICON_RULES = [
+    ['스마트폰','📱'],['휴대폰','📱'],['폰','📱'],
+    ['자동차','🚗'],['차량','🚗'],['타이어','🛞'],
+    ['옷','👕'],['의류','👕'],['패션','👗'],['신발','👟'],['운동화','👟'],
+    ['가방','👜'],['백팩','🎒'],['시계','⌚'],['보석','💎'],['주얼리','💎'],
+    ['커피','☕'],['음료','🥤'],['주스','🥤'],['우유','🥛'],['치즈','🧀'],
+    ['초콜릿','🍫'],['과자','🍪'],['빵','🍞'],['식품','🍽️'],['음식','🍽️'],
+    ['화장품','💄'],['향수','🧴'],['가구','🛋️'],['장난감','🧸'],['완구','🧸'],
+    ['책','📚'],['도서','📚'],['음악','🎵'],['악기','🎸'],['영화','🎬'],['드라마','🎬'],
+    ['게임','🎮'],['컴퓨터','💻'],['노트북','💻'],['TV','📺'],['텔레비전','📺'],
+    ['냉장고','🧊'],['세탁기','🫧'],['가전','🔌'],['카메라','📷'],
+    ['반도체','💾'],['칩','💾'],['에너지','⚡'],['전기','⚡'],['배터리','🔋'],
+    ['석유','🛢️'],['화학','🧪'],['철강','🏗️'],['금속','⚙️'],
+    ['항공','✈️'],['비행기','✈️'],['선박','🚢'],['배','🚢'],
+    ['농산물','🌾'],['쌀','🌾'],['곡물','🌾'],['채소','🥦'],['과일','🍎'],
+    ['고기','🥩'],['육류','🥩'],['생선','🐟'],['수산물','🐟'],
+    ['제약','💊'],['약','💊'],['의료','🩺'],
+    ['은행','🏦'],['금융','🏦'],['보험','🏦'],['스포츠','🏀'],['운동','🏀'],
+  ];
+  function iconFor(product){
+    if(!product) return '📦';
+    for(const [kw,icon] of ICON_RULES){ if(product.includes(kw)) return icon; }
+    return '📦';
+  }
+  function hashColor(str){
+    let h = 0;
+    for(let i=0;i<str.length;i++){ h = str.charCodeAt(i) + ((h<<5)-h); }
+    return LOGO_PALETTE[Math.abs(h) % LOGO_PALETTE.length];
+  }
+
+  const state = {
+    selections: { 본사:null, 연구소:null, 판매지점:null, 생산공장:null },
+    companyName:'', companyProduct:'',
+    reasons: { 본사:'', 연구소:'', 판매지점:'', 생산공장:'' },
+    reflection:''
+  };
+
+  let currentPage = 1;
+
+  /* ---------- PAGE 1 : role chip build ---------- */
+  const roleBlocksEl = document.getElementById('role-blocks');
+  ROLES.forEach(role=>{
+    const block = document.createElement('div');
+    block.className = 'role-block';
+    block.innerHTML = `
+      <div class="role-head">
+        <div class="role-icon" style="background:${role.hex}">${role.icon}</div>
+        <h3>${role.key}</h3>
+        <div class="role-selected">선택: <b id="sel-${role.key}">-</b></div>
+      </div>
+      <div class="chip-grid" id="chips-${role.key}"></div>
+    `;
+    roleBlocksEl.appendChild(block);
+
+    const chipGrid = block.querySelector(`#chips-${role.key}`);
+    LETTERS.forEach(letter=>{
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = '가상도시 ' + letter.toUpperCase();
+      chip.addEventListener('click', ()=>{
+        state.selections[role.key] = letter;
+        renderAll();
+      });
+      chip.dataset.letter = letter;
+      chipGrid.appendChild(chip);
+    });
+  });
+
+  function refreshChips(){
+    ROLES.forEach(role=>{
+      const chips = document.querySelectorAll(`#chips-${role.key} .chip`);
+      chips.forEach(chip=>{
+        const isSel = state.selections[role.key] === chip.dataset.letter;
+        chip.classList.toggle('selected', isSel);
+        chip.style.background = isSel ? role.hex : '';
+      });
+      document.getElementById(`sel-${role.key}`).textContent =
+        state.selections[role.key] ? '가상도시 ' + state.selections[role.key].toUpperCase() : '-';
+    });
+  }
+
+  /* ---------- PAGE 2 : org chart ---------- */
+  const companyNameInput = document.getElementById('companyName');
+  const companyProductInput = document.getElementById('companyProduct');
+  companyNameInput.addEventListener('input', e=>{ state.companyName = e.target.value; renderAll(); });
+  companyProductInput.addEventListener('input', e=>{ state.companyProduct = e.target.value; renderAll(); });
+
+  function locLabel(role){
+    const letter = state.selections[role];
+    return letter ? '가상도시 ' + letter.toUpperCase() : '도시를 선택해주세요';
+  }
+
+  function renderChart(){
+    document.getElementById('chartCompanyName').textContent = state.companyName || '기업명을 입력해주세요';
+    document.getElementById('chartCompanyProduct').textContent = state.companyProduct ? '주력 상품: ' + state.companyProduct : '주력 상품을 입력해주세요';
+    document.getElementById('hqLoc').textContent = locLabel('본사');
+
+    const branchWrap = document.getElementById('branchWrap');
+    branchWrap.innerHTML = '';
+    ROLES.filter(r=>r.key!=='본사').forEach(role=>{
+      const col = document.createElement('div');
+      col.className = 'branch-col';
+      col.innerHTML = `
+        <div class="stem"></div>
+        <div class="node" style="background:${role.hex}">${role.icon} ${role.key}<small>${locLabel(role.key)}</small></div>
+      `;
+      branchWrap.appendChild(col);
+    });
+  }
+
+  /* ---------- PAGE 3 : logo + reason table ---------- */
+  function renderLogo(){
+    const name = state.companyName.trim();
+    const product = state.companyProduct.trim();
+    const color = name ? hashColor(name + product) : '#9db3af';
+    const badge = document.getElementById('logoBadge');
+    badge.textContent = iconFor(product);
+    badge.style.background = color;
+    document.getElementById('logoAccent').style.background = color;
+    document.getElementById('logoName').textContent = name || '기업명을 입력해주세요';
+    document.getElementById('logoProduct').textContent = product ? '주력 상품 · ' + product : '주력 상품을 입력해주세요';
+  }
+
+  const reasonBody = document.getElementById('reasonBody');
+  function renderReasonTable(){
+    reasonBody.innerHTML = '';
+    ROLES.forEach(role=>{
+      const tr = document.createElement('tr');
+      const letter = state.selections[role.key];
+      tr.innerHTML = `
+        <td><span class="org-tag"><span class="dot" style="background:${role.hex}"></span>${role.icon} ${role.key}</span></td>
+        <td><span class="loc-pill">${letter ? '가상도시 ' + letter.toUpperCase() : '미선택'}</span></td>
+        <td><textarea data-role="${role.key}" placeholder="이 도시를 선택한 이유를 적어보세요.">${state.reasons[role.key]}</textarea></td>
+      `;
+      reasonBody.appendChild(tr);
+    });
+    reasonBody.querySelectorAll('textarea').forEach(ta=>{
+      ta.addEventListener('input', e=>{
+        state.reasons[e.target.dataset.role] = e.target.value;
+        checkCompletion();
+      });
+    });
+  }
+
+  /* ---------- PAGE 4 : Leaflet map (화면 표시용) ---------- */
+  const mapLegend = document.getElementById('mapLegend');
+  ROLES.forEach(role=>{
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = `<span class="swatch" style="background:${role.hex}">${role.icon}</span>${role.key}`;
+    mapLegend.appendChild(item);
+  });
+
+  let map, markersLayer, osmTileLayer, lastCityKey = null;
+  function initMap(){
+    map = L.map('mapContainer', { scrollWheelZoom:false }).setView([20, 20], 2);
+    osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; OpenStreetMap contributors',
+      maxZoom:9,
+      minZoom:2,
+      crossOrigin:true
+    }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+  }
+
+  function renderMap(){
+    if(!markersLayer) return;
+    markersLayer.clearLayers();
+
+    const byCity = {};
+    ROLES.forEach(role=>{
+      const letter = state.selections[role.key];
+      if(!letter) return;
+      if(!byCity[letter]) byCity[letter] = [];
+      byCity[letter].push(role);
+    });
+
+    const cityKeys = Object.keys(byCity).sort();
+
+    cityKeys.forEach(letter=>{
+      const base = CITY_COORDS[letter];
+      const rolesHere = byCity[letter];
+      const n = rolesHere.length;
+      rolesHere.forEach((role, i)=>{
+        const spread = 0.55;
+        const dLat = n>1 ? (Math.sin((Math.PI*2*i)/n) * spread) : 0;
+        const dLng = n>1 ? (Math.cos((Math.PI*2*i)/n) * spread) : 0;
+
+        const icon = L.divIcon({
+          className:'',
+          html:`<div class="marker-pin" style="width:28px;height:28px;background:${role.hex}">${role.icon}<span>${letter.toUpperCase()}</span></div>`,
+          iconSize:[28,28],
+          iconAnchor:[14,14]
+        });
+
+        L.marker([base.lat + dLat, base.lng + dLng], { icon })
+          .bindTooltip(`${role.icon} ${role.key} · 가상도시 ${letter.toUpperCase()}`)
+          .addTo(markersLayer);
+      });
+    });
+
+    const key = cityKeys.join(',');
+    if(key !== lastCityKey){
+      lastCityKey = key;
+      const layers = markersLayer.getLayers();
+      if(layers.length > 0){
+        const group = L.featureGroup(layers);
+        map.fitBounds(group.getBounds().pad(0.35), { maxZoom: layers.length > 1 ? 5 : 6 });
+      } else {
+        map.setView([20, 20], 2);
+      }
+    }
+  }
+
+  document.getElementById('reflection').addEventListener('input', e=>{
+    state.reflection = e.target.value;
+    checkCompletion();
+  });
+
+  /* ---------- 완료 여부 확인 ---------- */
+  function isComplete(){
+    const rolesDone = ROLES.every(r => !!state.selections[r.key] && state.reasons[r.key].trim().length > 0);
+    return rolesDone
+      && state.companyName.trim().length > 0
+      && state.companyProduct.trim().length > 0
+      && state.reflection.trim().length > 0;
+  }
+
+  function checkCompletion(){
+    document.getElementById('submitRow').style.display = isComplete() ? 'flex' : 'none';
+  }
+
+  /* ==========================================================
+     제출용 이미지(PNG) 생성 — 순수 Canvas API만 사용 (외부 의존성 없음)
+     measure/실제 그리기를 완전히 동일한 함수로 처리해서
+     "내용이 캔버스 아래로 잘려서 안 보이는" 문제를 근본적으로 방지함
+     ========================================================== */
+  function wrapText(ctx, text, maxWidth){
+    if(!text) return ['-'];
+    const paragraphs = String(text).split('\n');
+    const lines = [];
+    paragraphs.forEach(para=>{
+      if(para === ''){ lines.push(''); return; }
+      let current = '';
+      for(const ch of para){
+        const test = current + ch;
+        if(ctx.measureText(test).width > maxWidth && current !== ''){
+          lines.push(current);
+          current = ch;
+        } else {
+          current = test;
+        }
+      }
+      if(current) lines.push(current);
+    });
+    return lines;
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  // 손으로 다듬은 간이 대륙 실루엣(정확한 지리 정보 아님, 시각적 참고용)
+  const CONTINENT_SHAPES = [
+    [[40,60],[220,40],[290,90],[260,180],[180,260],[80,230],[20,150]],       // 북아메리카
+    [[190,260],[260,270],[270,360],[210,380],[170,340],[160,290]],          // 남아메리카
+    [[400,70],[560,60],[580,120],[520,170],[430,160],[400,110]],           // 유럽
+    [[420,180],[560,170],[600,260],[540,360],[440,350],[400,260]],         // 아프리카
+    [[560,60],[860,50],[880,180],[830,280],[650,290],[560,200],[540,120]], // 아시아
+    [[760,300],[850,290],[860,350],[780,360]],                             // 오세아니아
+  ];
+
+  function drawSchematicMap(ctx, x, y, w, h){
+    const scaleX = w/900, scaleY = h/380;
+
+    roundRectPath(ctx, x, y, w, h, 12);
+    ctx.fillStyle = '#eaf3f1';
+    ctx.fill();
+
+    ctx.save();
+    roundRectPath(ctx, x, y, w, h, 12);
+    ctx.clip();
+
+    ctx.strokeStyle = '#d7e6e3';
+    ctx.lineWidth = 1;
+    for(let gx=0; gx<=900; gx+=90){
+      ctx.beginPath(); ctx.moveTo(x+gx*scaleX, y); ctx.lineTo(x+gx*scaleX, y+h); ctx.stroke();
+    }
+    for(let gy=0; gy<=380; gy+=76){
+      ctx.beginPath(); ctx.moveTo(x, y+gy*scaleY); ctx.lineTo(x+w, y+gy*scaleY); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#cfe4df';
+    ctx.strokeStyle = '#a9c8c1';
+    ctx.lineWidth = 1.4;
+    CONTINENT_SHAPES.forEach(poly=>{
+      ctx.beginPath();
+      poly.forEach(([px,py], i)=>{
+        const X = x + px*scaleX, Y = y + py*scaleY;
+        if(i===0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    roundRectPath(ctx, x, y, w, h, 12);
+    ctx.strokeStyle = '#cfe0dc';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const byCity = {};
+    ROLES.forEach(role=>{
+      const letter = state.selections[role.key];
+      if(!letter) return;
+      if(!byCity[letter]) byCity[letter] = [];
+      byCity[letter].push(role);
+    });
+    Object.keys(byCity).forEach(letter=>{
+      const base = SCHEMATIC_POS[letter];
+      const rolesHere = byCity[letter];
+      const n = rolesHere.length;
+      rolesHere.forEach((role, i)=>{
+        const offset = n>1 ? 16 : 0;
+        const angle = (Math.PI*2*i)/Math.max(n,1);
+        const mx = x + (base.x + Math.cos(angle)*offset) * scaleX;
+        const my = y + (base.y + Math.sin(angle)*offset) * scaleY;
+        ctx.beginPath(); ctx.arc(mx, my, 10, 0, Math.PI*2);
+        ctx.fillStyle = role.hex; ctx.fill();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 10.5px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(letter.toUpperCase(), mx, my+3.6);
+        ctx.textAlign = 'left';
+      });
+    });
+  }
+
+  // 측정용/실제 그리기용으로 동일하게 호출되는 단일 렌더 함수. 최종 y좌표(콘텐츠 총 높이)를 반환.
+  // mapCanvas가 주어지면 실제 캡처된 지도를, 없으면 간이 도식 지도를 그림.
+  function renderReport(ctx, W, mapCanvas){
+    const marginX = 56;
+    const contentW = W - marginX*2;
+    const FONT_TITLE = '700 24px "Space Grotesk","Noto Sans KR",sans-serif';
+    const FONT_H2 = '700 16px "Noto Sans KR", sans-serif';
+    const FONT_BODY = '15px "Noto Sans KR", sans-serif';
+    const FONT_BODY_BOLD = '700 15px "Noto Sans KR", sans-serif';
+    const LH = 22;
+
+    const name = state.companyName.trim() || '(기업명 미입력)';
+    const product = state.companyProduct.trim() || '(주력 상품 미입력)';
+    const color = hashColor(name + product);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, ctx.canvas.height);
+
+    let y = 56;
+
+    // 제목
+    ctx.fillStyle = '#155448';
+    ctx.font = FONT_TITLE;
+    ctx.textAlign = 'left';
+    ctx.fillText('다국적 기업 공간적 분업 학습 결과지', marginX, y);
+    y += 18;
+    ctx.strokeStyle = '#d8e2e0'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(W-marginX, y); ctx.stroke();
+    y += 46;
+
+    // 로고
+    const badgeSize = 66;
+    roundRectPath(ctx, marginX, y-46, badgeSize, badgeSize, 16);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(iconFor(product), marginX + badgeSize/2, y - 46 + badgeSize/2 + 12);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#16323a';
+    ctx.font = '700 20px "Noto Sans KR", sans-serif';
+    ctx.fillText(name, marginX + badgeSize + 18, y - 14);
+    ctx.fillStyle = color;
+    ctx.fillRect(marginX + badgeSize + 18, y - 2, 36, 3);
+    ctx.fillStyle = '#7a8c89';
+    ctx.font = FONT_BODY;
+    ctx.fillText('주력 상품 · ' + product, marginX + badgeSize + 18, y + 18);
+    y += 70;
+
+    // 기업 조직도 (시각화)
+    ctx.fillStyle = '#155448';
+    ctx.font = FONT_H2;
+    ctx.fillText('기업 조직도', marginX, y);
+    y += 26;
+
+    const hqW = 230, hqH = 54;
+    const hqX = marginX + contentW/2 - hqW/2;
+    const hqY = y;
+    roundRectPath(ctx, hqX, hqY, hqW, hqH, 12);
+    ctx.fillStyle = '#effaf6'; ctx.fill();
+    ctx.strokeStyle = '#1f7a68'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#1f7a68';
+    ctx.textAlign = 'center';
+    ctx.font = '700 15px "Noto Sans KR", sans-serif';
+    ctx.fillText('★ 본사', hqX + hqW/2, hqY + 23);
+    ctx.font = '12px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#4a625f';
+    const hqLetter = state.selections['본사'];
+    ctx.fillText(hqLetter ? '가상도시 ' + hqLetter.toUpperCase() : '미선택', hqX + hqW/2, hqY + 40);
+    ctx.textAlign = 'left';
+
+    let by = hqY + hqH;
+    const connectorLen = 24;
+    ctx.strokeStyle = '#d8e2e0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(marginX + contentW/2, by); ctx.lineTo(marginX + contentW/2, by + connectorLen); ctx.stroke();
+    by += connectorLen;
+
+    const branchRoles = ROLES.filter(r=>r.key!=='본사');
+    const gap = 16;
+    const boxW = (contentW - gap*(branchRoles.length-1)) / branchRoles.length;
+    const boxH = 60;
+    const barY = by;
+
+    ctx.beginPath();
+    ctx.moveTo(marginX + boxW/2, barY);
+    ctx.lineTo(marginX + contentW - boxW/2, barY);
+    ctx.stroke();
+
+    branchRoles.forEach((role, i)=>{
+      const bx = marginX + i*(boxW+gap);
+      const cx = bx + boxW/2;
+      ctx.beginPath(); ctx.moveTo(cx, barY); ctx.lineTo(cx, barY+18); ctx.stroke();
+      const boxY = barY + 18;
+      roundRectPath(ctx, bx, boxY, boxW, boxH, 10);
+      ctx.fillStyle = role.hex; ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = '700 13px "Noto Sans KR", sans-serif';
+      ctx.fillText(role.icon + ' ' + role.key, cx, boxY + 24);
+      ctx.font = '11px "Noto Sans KR", sans-serif';
+      const letter = state.selections[role.key];
+      ctx.fillText(letter ? '가상도시 ' + letter.toUpperCase() : '미선택', cx, boxY + 42);
+      ctx.textAlign = 'left';
+    });
+
+    y = barY + 18 + boxH + 40;
+
+    // 조직별 입지 선정 이유 (학생이 작성한 내용 전문)
+    ctx.fillStyle = '#155448';
+    ctx.font = FONT_H2;
+    ctx.fillText('조직별 입지 선정 이유', marginX, y);
+    y += 26;
+
+    ROLES.forEach(role=>{
+      const letter = state.selections[role.key];
+      ctx.fillStyle = role.hex;
+      roundRectPath(ctx, marginX, y-13, 12, 12, 3); ctx.fill();
+      ctx.fillStyle = '#16323a';
+      ctx.font = FONT_BODY_BOLD;
+      ctx.fillText(`${role.icon} ${role.key}  ·  가상도시 ${letter ? letter.toUpperCase() : '-'}`, marginX + 20, y);
+      y += 22;
+      ctx.fillStyle = '#3c4644';
+      ctx.font = FONT_BODY;
+      const lines = wrapText(ctx, state.reasons[role.key] || '(작성한 이유 없음)', contentW - 20);
+      lines.forEach(line=>{ ctx.fillText(line, marginX + 20, y); y += LH; });
+      y += 16;
+    });
+    y += 8;
+
+    // 세계지도 위 조직 배치
+    ctx.fillStyle = '#155448';
+    ctx.font = FONT_H2;
+    ctx.fillText('세계지도 위 조직 배치', marginX, y);
+    y += 20;
+
+    const mapX = marginX, mapY = y, mapW = contentW, mapH = 280;
+    if(mapCanvas){
+      roundRectPath(ctx, mapX, mapY, mapW, mapH, 12);
+      ctx.save();
+      ctx.clip();
+      const iw = mapCanvas.width, ih = mapCanvas.height;
+      const scale = Math.max(mapW/iw, mapH/ih);
+      const dw = iw*scale, dh = ih*scale;
+      const dx = mapX + (mapW-dw)/2, dy = mapY + (mapH-dh)/2;
+      ctx.drawImage(mapCanvas, dx, dy, dw, dh);
+      ctx.restore();
+      roundRectPath(ctx, mapX, mapY, mapW, mapH, 12);
+      ctx.strokeStyle = '#cfe0dc'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      drawSchematicMap(ctx, mapX, mapY, mapW, mapH);
+    }
+    y = mapY + mapH + 36;
+
+    // 학생 성찰
+    ctx.fillStyle = '#155448';
+    ctx.font = FONT_H2;
+    ctx.fillText('학생 성찰', marginX, y);
+    y += 24;
+    ctx.fillStyle = '#3c4644';
+    ctx.font = FONT_BODY;
+    const rLines = wrapText(ctx, state.reflection || '-', contentW);
+    rLines.forEach(line=>{ ctx.fillText(line, marginX, y); y += LH; });
+
+    y += 40;
+    return y;
+  }
+
+  // 실제 화면에 보이는 Leaflet 지도를 캡처해봄. 실패하면 null을 반환해서
+  // renderReport가 자동으로 간이 도식 지도로 대체하도록 함.
+  async function captureRealMap(){
+    if(typeof html2canvas === 'undefined') return null;
+    const originalPage = currentPage;
+    try{
+      if(currentPage !== 4){
+        goTo(4);
+        await new Promise(r=>setTimeout(r, 250));
+      }
+      if(map) map.invalidateSize();
+
+      // 지도 크기가 보정된 뒤, 선택된 모든 도시(A~J)가 전부 화면에 들어오도록 강제로 범위를 다시 맞춤
+      if(map && markersLayer){
+        const layers = markersLayer.getLayers();
+        if(layers.length > 0){
+          const group = L.featureGroup(layers);
+          map.fitBounds(group.getBounds().pad(0.35), { maxZoom: layers.length > 1 ? 5 : 6, animate:false });
+        }
+      }
+
+      await new Promise(r=>setTimeout(r, 150)); // 화면 리레이아웃 안정화 대기
+
+      // 지도 타일이 실제로 다 불러와질 때까지 기다림 (넓게 축소될수록 타일 수가 많아지므로
+      // 고정된 짧은 시간만 기다리면 타일이 덜 불러와진 채로 캡처될 수 있음)
+      await new Promise(resolve=>{
+        let done = false;
+        const finish = ()=>{ if(!done){ done = true; resolve(); } };
+        if(osmTileLayer){ osmTileLayer.once('load', finish); }
+        setTimeout(finish, 3000); // 혹시 load 이벤트가 안 오더라도 최대 3초까지만 대기
+      });
+
+      // 캡처 순간 마우스 커서가 마커 위에 걸려 호버 툴팁이 열린 채로 찍히는 것을 방지
+      const mapEl = document.getElementById('mapContainer');
+      mapEl.style.pointerEvents = 'none';
+      if(markersLayer){
+        markersLayer.eachLayer(l=>{ if(l.closeTooltip) l.closeTooltip(); });
+      }
+      if(map && map.closeTooltip) map.closeTooltip();
+      await new Promise(r=>setTimeout(r, 60));
+
+      const shot = await html2canvas(document.getElementById('mapContainer'), {
+        useCORS:true,
+        allowTaint:false,
+        backgroundColor:'#ffffff',
+        logging:false,
+        scale:1
+      });
+
+      // 캡처된 캔버스가 오염(taint)되었는지 확인 — 오염되면 픽셀을 읽을 수 없어 에러가 남
+      try{ shot.getContext('2d').getImageData(0,0,1,1); }
+      catch(e){ return null; }
+
+      return shot;
+    }catch(err){
+      return null;
+    }finally{
+      document.getElementById('mapContainer').style.pointerEvents = '';
+      if(originalPage !== 4){ goTo(originalPage); }
+    }
+  }
+
+  async function generateImage(){
+    const W = 900;
+    const mapCanvas = await captureRealMap();
+
+    // 1차: 넉넉한 임시 캔버스에 실제 그리기 함수를 그대로 실행해 정확한 전체 높이를 얻음
+    const probe = document.createElement('canvas');
+    probe.width = W; probe.height = 8000;
+    const probeCtx = probe.getContext('2d');
+    const finalY = renderReport(probeCtx, W, mapCanvas);
+
+    // 2차: 정확한 높이의 최종 캔버스에 동일한 함수로 다시 그리기 (내용이 잘리지 않음)
+    const H = Math.round(finalY);
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    renderReport(ctx, W, mapCanvas);
+
+    const name = state.companyName.trim() || '기업';
+    const filename = name.replace(/\s+/g,'_') + '_공간적분업_결과.png';
+
+    canvas.toBlob(blob=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=> URL.revokeObjectURL(url), 2000);
+    }, 'image/png');
+  }
+
+  const submitBtnEl = document.getElementById('submitBtn');
+  submitBtnEl.addEventListener('click', async ()=>{
+    if(!isComplete()) return;
+    submitBtnEl.disabled = true;
+    const originalLabel = submitBtnEl.textContent;
+    submitBtnEl.textContent = '이미지 생성 중...';
+    try{
+      if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
+      await generateImage();
+    } finally {
+      submitBtnEl.disabled = false;
+      submitBtnEl.textContent = originalLabel;
+    }
+  });
+
+  /* ---------- master render + navigation ---------- */
+  function renderAll(){
+    refreshChips();
+    renderChart();
+    renderLogo();
+    renderReasonTable();
+    renderMap();
+    checkCompletion();
+  }
+
+  initMap();
+  renderAll();
+
+  const pages = document.querySelectorAll('.page');
+  const progressBtns = document.querySelectorAll('.progress button');
+  const progressLabels = document.querySelectorAll('.progress-labels span');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const pageIndicator = document.getElementById('pageIndicator');
+
+  function goTo(n){
+    currentPage = n;
+    pages.forEach((p,i)=> p.classList.toggle('active', i === n-1));
+    progressBtns.forEach((b,i)=> b.classList.toggle('active', i === n-1));
+    progressLabels.forEach((l,i)=> l.classList.toggle('active', i === n-1));
+    prevBtn.disabled = n===1;
+    nextBtn.textContent = n===4 ? '완료 ✓' : '다음 →';
+    pageIndicator.textContent = n + ' / 4';
+    renderAll();
+    if(n===4 && map){
+      setTimeout(()=> map.invalidateSize(), 60);
+    }
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  progressBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=> goTo(parseInt(btn.dataset.goto)));
+  });
+  prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goTo(currentPage-1); });
+  nextBtn.addEventListener('click', ()=>{ if(currentPage<4) goTo(currentPage+1); });
+
+  goTo(1);
+</script>
+</body>
+</html>
